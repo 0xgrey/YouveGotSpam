@@ -32,8 +32,8 @@ func investigate() {
 			fmt.Println(err)
 			return
 		}
-		utils.ParseOptFlags(os.Args[3:])
-		utils.ActionInvestigateDomains(domains)
+		flags := utils.ParseOptFlags(os.Args[3:])
+		utils.ActionInvestigateDomains(domains, flags["table"])
 		return
 	}
 	count, entryPoint := 0, 2
@@ -45,19 +45,18 @@ func investigate() {
 		}
 		count++
 	}
-	utils.ParseOptFlags(os.Args[count+entryPoint:])
-	utils.ActionInvestigateDomains(os.Args[entryPoint : count+entryPoint])
+	flags := utils.ParseOptFlags(os.Args[count+entryPoint:])
+	utils.ActionInvestigateDomains(os.Args[entryPoint:count+entryPoint], flags["table"])
 }
 
 func check_mdi() {
-	spoofcheck := utils.ParseOptFlags(os.Args[3:])["spoofcheck"]
-	// checkDmarc := utils.ParseMDIFlags(os.Args[3:])
+	flags := utils.ParseOptFlags(os.Args[3:])
 	_, domains, err := utils.ActionCheckMDI(os.Args[2:])
 	if err != nil {
 		fmt.Println(err)
 	}
-	if spoofcheck {
-		fmt.Println("\nInvestigating spoofing capabilities ...\n")
-		utils.ActionInvestigateDomains(domains)
+	if flags["spoofcheck"] {
+		fmt.Printf("\nInvestigating spoofing capabilities ...\n\n")
+		utils.ActionInvestigateDomains(domains, flags["table"])
 	}
 }

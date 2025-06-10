@@ -30,11 +30,11 @@ Investigate for Spoofability:
 Enumerate MDI:
 	YouveGotSpam check_mdi <domain>
 	Flags:
-		-s; -spoofcheck; run 'investigate' against collected domains
-
+		-s; -spoofcheck: run 'investigate' against collected domains
 
 Global Flags (Optional):
 	Suppress Banner: -q; -quiet
+	Table Output: -t; -table
 `
 
 var (
@@ -61,6 +61,9 @@ func ParseOptFlags(flags []string) map[string]bool {
 	checkDmarc := fs.Bool("spoofcheck", false, "Check spoofing on domains")
 	fs.BoolVar(checkDmarc, "s", false, "Check spoofing policies on domains")
 
+	isTable := fs.Bool("table", false, "Output in table format")
+	fs.BoolVar(isTable, "t", false, "Output in table format")
+
 	fs.Parse(flags)
 
 	flagmap := make(map[string]bool)
@@ -72,19 +75,12 @@ func ParseOptFlags(flags []string) map[string]bool {
 	if *checkDmarc {
 		flagmap["spoofcheck"] = true
 	}
+
+	if *isTable {
+		flagmap["table"] = true
+	}
 	return flagmap
 }
-
-// func ParseMDIFlags(flags []string) bool {
-// 	fs := flag.NewFlagSet("MDI DMARC", flag.ExitOnError)
-
-// 	fs.Parse(flags)
-
-// 	if *checkDmarc {
-// 		return true
-// 	}
-// 	return false
-// }
 
 func SliceFile(filename string) ([]string, error) {
 	file, err := os.Open(filename)
@@ -117,8 +113,29 @@ func FileExists(path string) bool {
 
 // YouveGotSpam Actions
 
-// TODO: add support for checking multiple domains
-func ActionInvestigateDomains(domains []string) (bool, error) {
+func ActionInvestigateDomains(domains []string, isTable bool) (bool, error) {
+	if isTable {
+		profiles := make([]DomainProfile, len(domains))
+		// var profiles = [len(doamins)]DomainProfile
+		for count, domain := range domains {
+			profiles[count] = InvestigateDomain(domain)
+		}
+
+		table := NewTable([]string{"DOMAIN", "VALID", "DMARC", "SPF", "SPOOFING POSSIBLE?"}, " | ")
+		for _, profile := range profiles {
+			table.AddRow(profile.Domain,
+				ColorizeBool(profile.Valid),
+				ColorizeBool(profile.DmarcEnabled),
+				ColorizeBool(profile.SpfEnabled),
+				ColorizeBool(profile.SpoofingPossible),
+			)
+		}
+
+		table.Render()
+
+		return true, nil
+	}
+
 	for _, domain := range domains {
 		fmt.Printf("Checking %s ...", domain)
 		InterpretDomainInvestigation(InvestigateDomain(domain))
@@ -127,7 +144,7 @@ func ActionInvestigateDomains(domains []string) (bool, error) {
 }
 
 func ActionCheckMDI(args []string) (bool, []string, error) {
-	fmt.Println("Checking MDI...\n")
+	fmt.Printf("Checking MDI...\n\n")
 	domain := args[0]
 
 	if !DomainExists(domain) {
