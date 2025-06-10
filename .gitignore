@@ -30,3 +30,9 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# Custom Files
+todo.txt
+sandbox/
+.DS_Store
+media/.DS_Store

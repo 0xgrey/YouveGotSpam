@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/xml"
 	"flag"
@@ -8,6 +9,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -27,6 +29,12 @@ Investigate for Spoofability:
 
 Enumerate MDI:
 	YouveGotSpam check_mdi <domain>
+	Flags:
+		-s; -spoofcheck; run 'investigate' against collected domains
+
+
+Global Flags (Optional):
+	Suppress Banner: -q; -quiet
 `
 
 var (
@@ -44,40 +52,93 @@ func PrintUsage(clause ...error) {
 	fmt.Println(Usage)
 }
 
-func ParseOptFlags(flags []string) {
+func ParseOptFlags(flags []string) map[string]bool {
 	fs := flag.NewFlagSet("optional", flag.ExitOnError)
 
 	quiet := fs.Bool("quiet", false, "suppress banner")
 	fs.BoolVar(quiet, "q", false, "suppress banner")
 
+	checkDmarc := fs.Bool("spoofcheck", false, "Check spoofing on domains")
+	fs.BoolVar(checkDmarc, "s", false, "Check spoofing policies on domains")
+
 	fs.Parse(flags)
+
+	flagmap := make(map[string]bool)
 
 	if !*quiet {
 		fmt.Println(Banner)
 	}
+
+	if *checkDmarc {
+		flagmap["spoofcheck"] = true
+	}
+	return flagmap
+}
+
+// func ParseMDIFlags(flags []string) bool {
+// 	fs := flag.NewFlagSet("MDI DMARC", flag.ExitOnError)
+
+// 	fs.Parse(flags)
+
+// 	if *checkDmarc {
+// 		return true
+// 	}
+// 	return false
+// }
+
+func SliceFile(filename string) ([]string, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	var lines []string
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+		if lastIndex := len(lines) - 1; lines[lastIndex] == "" {
+			lines = lines[:lastIndex]
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	return lines, nil
+}
+
+func FileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil || !os.IsNotExist(err)
 }
 
 // YouveGotSpam Actions
 
 // TODO: add support for checking multiple domains
-func ActionInvestigateDomain(domain string) (bool, error) {
-	targetDomain := InvestigateDomain(domain)
-	InterpretDomainInvestigation(targetDomain)
+func ActionInvestigateDomains(domains []string) (bool, error) {
+	for _, domain := range domains {
+		fmt.Printf("Checking %s ...", domain)
+		InterpretDomainInvestigation(InvestigateDomain(domain))
+	}
 	return true, nil
 }
 
-func ActionCheckMDI(args []string) (bool, error) {
+func ActionCheckMDI(args []string) (bool, []string, error) {
+	fmt.Println("Checking MDI...\n")
 	domain := args[0]
 
 	if !DomainExists(domain) {
-		return false, fmt.Errorf("invalid domain: %s", domain)
+		return false, nil, fmt.Errorf("invalid domain: %s", domain)
 	}
 
 	// Discover Microsoft-managed domains
 	mdiPayload := fmt.Sprintf(mdiRequestBody, domain)
 	req, err := http.NewRequest("POST", autoDiscoverURL, bytes.NewBufferString(mdiPayload))
 	if err != nil {
-		return false, err
+		return false, nil, err
 	}
 	req.Header.Set("Content-Type", xmlContentType)
 	req.Header.Set("User-Agent", "AutodiscoverClient/1.0")
@@ -85,13 +146,13 @@ func ActionCheckMDI(args []string) (bool, error) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return false, fmt.Errorf("reading response failed: %w", err)
+		return false, nil, fmt.Errorf("reading response failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return false, fmt.Errorf("parsing XML failed: %w", err)
+		return false, nil, fmt.Errorf("parsing XML failed: %w", err)
 	}
 
 	var domains []string
@@ -102,7 +163,7 @@ func ActionCheckMDI(args []string) (bool, error) {
 			break
 		}
 		if err != nil {
-			return false, err
+			return false, nil, err
 		}
 
 		if se, ok := token.(xml.StartElement); ok &&
@@ -125,7 +186,7 @@ func ActionCheckMDI(args []string) (bool, error) {
 		}
 	} else {
 		fmt.Println(NegativeBracket, "No domains found!")
-		return false, nil
+		return false, nil, nil
 	}
 	fmt.Println()
 
@@ -155,5 +216,5 @@ func ActionCheckMDI(args []string) (bool, error) {
 		fmt.Println(InfoBracket, "No MDI instance found:", hostname)
 	}
 
-	return true, nil
+	return true, domains, nil
 }

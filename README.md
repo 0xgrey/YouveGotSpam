@@ -3,6 +3,8 @@ Multitool for auditing email security settings, sending spoofed emails as proof 
 
 Designed with a minimal reliance on third-party dependencies.
 
+![YouveGotSpam Logo](/media/logo.png)
+
 ## TODO
  - [ ] Support for checking spoofable status against multiple domains via "investigate" command.
  - [ ] Support for Mailgun API to send emails.

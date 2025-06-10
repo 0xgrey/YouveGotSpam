@@ -25,6 +25,7 @@ func InterpretDomainInvestigation(dp DomainProfile) {
 
 	if !dp.Valid {
 		fmt.Println(NegativeBracket, dp.Domain, "is not valid!")
+		return
 	}
 
 	if dp.DmarcEnabled {
@@ -43,7 +44,7 @@ func InterpretDomainInvestigation(dp DomainProfile) {
 	}
 
 	if dp.SpoofingPossible {
-		fmt.Printf("%s Spoofing is possible for %s!", PositiveBracket, dp.Domain)
+		fmt.Printf("%s Spoofing is possible for %s!\n", PositiveBracket, dp.Domain)
 	} else {
 		fmt.Println(NegativeBracket, "Spoofing is not possible for", dp.Domain)
 	}
