@@ -3,6 +3,7 @@ package main
 import (
 	"YouveGotSpam/utils"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 )
@@ -19,6 +20,8 @@ func main() {
 		investigate()
 	case "check_mdi":
 		check_mdi()
+	case "spoof":
+		spoof()
 	default:
 		utils.PrintUsage()
 		return
@@ -59,4 +62,40 @@ func check_mdi() {
 		fmt.Printf("\nInvestigating spoofing capabilities ...\n\n")
 		utils.ActionInvestigateDomains(domains, flags["table"])
 	}
+}
+
+func spoof() {
+	utils.ParseOptFlags(os.Args[3:])
+
+	// Parse file
+	configFile := os.Args[2]
+
+	if !utils.FileExists(configFile) {
+		log.Fatalf("Template does not exist")
+	}
+
+	emailConfig := utils.ParseSpoofEmail(configFile)
+	fmt.Println(emailConfig)
+
+	emailConfig.TargetDomain = strings.Split(emailConfig.To, "@")[1]
+
+	// Confirm validity
+	investigation := utils.InvestigateDomain(emailConfig.TargetDomain)
+	if !investigation.Valid {
+		fmt.Println(utils.NegativeBracket, emailConfig.TargetDomain, "is not valid!")
+		return
+	} else if !investigation.SpoofingPossible {
+		fmt.Println(utils.NegativeBracket, "Spoofing is not possible on", emailConfig.TargetDomain)
+		return
+	}
+	fmt.Println(utils.PositiveBracket, "Spoofing is possible on", emailConfig.TargetDomain)
+
+	// Send spoofed email via direct send
+	spoofResult, err := utils.SendSpoofedEmail(emailConfig)
+	if err == nil && spoofResult {
+		fmt.Println(utils.PositiveBracket, "Spoofed email sent (direct)!")
+	} else {
+		fmt.Println(utils.NegativeBracket, "Error when sending email (direct).")
+	}
+
 }

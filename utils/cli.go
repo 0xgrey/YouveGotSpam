@@ -13,8 +13,7 @@ import (
 	"strings"
 )
 
-var Banner = `
-         __ __                 _____     _   _____
+var Banner = `         __ __                 _____     _   _____
         |  |  |___ _ _ _ _ ___|   __|___| |_|   __|___ ___ _____
         |_   _| . | | | | | -_|  |  | . |  _|__   | . | .'|     |
           |_| |___|___|\_/|___|_____|___|_| |_____|  _|__,|_|_|_|
@@ -31,6 +30,16 @@ Enumerate MDI:
 	YouveGotSpam check_mdi <domain>
 	Flags:
 		-s; -spoofcheck: run 'investigate' against collected domains
+
+Spoof Mail:
+		YouveGotSpam spoof template.toml
+        YouveGotSpam spoof -r <target@domain.com || targets.txt> -f sender@domain.com
+        YouveGotSpam spoof -r target@domain.com -f sender@domain.com -i 10.10.10.10
+        Flags:
+                -r; -recipient: Recipient(s) for spoofed emails. Comes in the form of an email address of text file
+                -f; -from: Email address you're spoofing emails from
+                -i; -ip: IP Address for forced authentication
+                -b; -boilerplate: YAML template to parse from
 
 Global Flags (Optional):
 	Suppress Banner: -q; -quiet
@@ -234,4 +243,9 @@ func ActionCheckMDI(args []string) (bool, []string, error) {
 	}
 
 	return true, domains, nil
+}
+
+// Send spoofed emails via direct-send
+func ActionSpoofEmail(targetEmail, fromEmail, subject, body, mimetype string) (bool, error) {
+	return true, nil
 }
